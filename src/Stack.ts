@@ -1,24 +1,31 @@
 import { Collection } from "./Collection";
 
-interface IQueue<T> {
-   enqueue(item: T): void;
-   dequeue(): T | undefined;
+interface IStack<T> {
+   push(item: T): void;
+   pop(): T | undefined;
+   peek(): T | undefined;
    size(): number;
 }
 
-export default class QueueCollection<T> extends Collection<T> implements IQueue<T> {
+class StackCollection<T> extends Collection<T> implements IStack<T> {
    constructor(private capacity: number = Infinity) {
       super();
    }
-   enqueue(item: T): void {
+
+   push(item: T) {
       if (this.isFull()) {
-         throw Error("Queue has reached max capacity, you cannot add more items");
+         throw Error("Stack has reached max capacity, you cannot add more items");
       }
       // In the derived class, we can access protected properties of the abstract class
       this.storage.push(item);
    }
-   dequeue(): T | undefined {
-      return this.storage.shift();
+
+   pop(): T | undefined {
+      return this.storage.pop();
+   }
+
+   peek(): T | undefined {
+      return this.storage[this.size() - 1];
    }
 
    // Implementation of the abstract method

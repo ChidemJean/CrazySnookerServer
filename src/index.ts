@@ -2,6 +2,7 @@ import WebSocket, { WebSocketServer } from 'ws';
 import Player from './entities/Player';
 import Queue from './Queue';
 import Match from './entities/Match';
+import { PlayerStatus } from './entities/Player';
 
 export enum MessageType {
    INIT_MATCH = 1,
@@ -33,11 +34,11 @@ wss.on('connection', function connection(ws: any, req) {
    players.set(idNewPlayer, newPlayer);
    ws.send(JSON.stringify({ type: MessageType.UPDATE_ID, id: idNewPlayer }));
 
-   if (playersQueue.isEmpty) {
+   if (playersQueue.isEmpty()) {
       playersQueue.enqueue(newPlayer);
    } else {
       const player = playersQueue.dequeue();
-      if (player.ws.readyState === WebSocket.OPEN) {
+      if (player != null && player.ws.readyState === WebSocket.OPEN) {
          const idNewMatch = matches.size.toString();
          const newMatch = new Match(idNewMatch, [ newPlayer, player ]);
          matches.set(idNewMatch, newMatch);
@@ -49,7 +50,6 @@ wss.on('connection', function connection(ws: any, req) {
    
    ws.on('message', (data: any, isBinary: any) => {
       // let message = JSON.parse(data);
-
       players.forEach(player => {
          if (player.currentMatch == null) return;
          player.currentMatch.players.forEach(playerInMatch => {
@@ -62,14 +62,7 @@ wss.on('connection', function connection(ws: any, req) {
 
    ws.on("close", (code: any, reason: any) => {
       console.log(`player ${reason} disconnected: ${code}`);
-      players.forEach(player => {
-         if (player.ws === ws) {
-            if (player.currentMatch != null) {
-               player.currentMatch.finish();
-            }
-            players.delete(player.id);
-         }
-      });
+      checkForClose(ws);
    });
 
    ws.on('error', console.error);
@@ -77,10 +70,41 @@ wss.on('connection', function connection(ws: any, req) {
 
 });
 
+function checkForClose(ws: any) {
+   players.forEach(player => {
+      if (player.ws === ws) {
+         if (player.currentMatch != null) {
+            player.currentMatch.players.forEach(matchPlayer => {
+               if (player != matchPlayer) {
+                  players.delete(matchPlayer.id);
+                  matchPlayer.ws.terminate();
+               }
+            });
+            matches.delete(player.currentMatch.id);
+            player.currentMatch.finish();
+         }
+         if (player.status == PlayerStatus.WAITING_ON_QUEUE) {
+            playersQueue.remove(player);
+         }
+         players.delete(player.id);
+      }
+   });
+}
+
 // CHECK BROKEN CONNECTIONS
 const interval = setInterval(function ping() {
+   
+   console.log("----------------------------------------------")
+   console.log("players online: ", players.size);
+   console.log("players na fila: ", playersQueue.size());
+   console.log("partidas ativas: ", matches.size);
+
    wss.clients.forEach(function each(ws: any) {
-      if (ws.isAlive === false) return ws.terminate();
+      if (ws.isAlive === false) {
+         checkForClose(ws);
+         console.log(`player disconnected by server`);
+         return ws.terminate();
+      }
 
       ws.isAlive = false;
       ws.ping();
