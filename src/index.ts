@@ -19,7 +19,9 @@ function heartbeat(this: any) {
 }
 
 const wss = new WebSocketServer({ port: 21106 });
-console.log("Running CrazySnooker WebSocket...")
+console.log("Running CrazySnooker WebSocket...");
+
+const delayBrokenConns = 30000;
 
 const players = new Map<string, Player>();
 const matches = new Map<string, Match>();
@@ -109,7 +111,7 @@ const interval = setInterval(function ping() {
       ws.isAlive = false;
       ws.ping();
    });
-}, 30000);
+}, delayBrokenConns);
 
 wss.on('close', function close() {
    clearInterval(interval);
