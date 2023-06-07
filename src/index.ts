@@ -6,13 +6,19 @@ import Match from './entities/Match';
 export enum MessageType {
    INIT_MATCH = 1,
    UPDATE_ID = 2,
+   PASS_TURN = 3,
+   UPDATE_BALLS = 4,
+   MOVE_CUE = 5,
+   ROTATE_CUE = 6,
+   SHOT = 7,
 }
 
 function heartbeat(this: any) {
    this.isAlive = true;
 }
 
-const wss = new WebSocketServer({ port: 9001 });
+const wss = new WebSocketServer({ port: 21106 });
+console.log("Running CrazySnooker WebSocket...")
 
 const players = new Map<string, Player>();
 const matches = new Map<string, Match>();
@@ -42,11 +48,13 @@ wss.on('connection', function connection(ws: any, req) {
    }
    
    ws.on('message', (data: any, isBinary: any) => {
+      // let message = JSON.parse(data);
+
       players.forEach(player => {
          if (player.currentMatch == null) return;
          player.currentMatch.players.forEach(playerInMatch => {
             if (playerInMatch.ws !== ws && playerInMatch.ws.readyState === WebSocket.OPEN) {
-               playerInMatch.ws.send(data, { binary: isBinary });
+               playerInMatch.ws.send(data);
             }
          });
       });
